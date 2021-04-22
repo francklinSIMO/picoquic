@@ -26,7 +26,7 @@
 #include "picoquic_utils.h"
 #include "picoquic_config.h"
 
-static char* ref_option_text = "c:k:K:p:v:o:w:x:rRs:S:G:P:O:M:e:C:E:i:l:Lb:q:m:n:a:t:zI:DQT:N:B:F:Vh";
+static char* ref_option_text = "c:k:K:p:v:o:w:x:rRs:S:G:P:O:M:e:C:E:i:l:Lb:q:m:n:a:t:zI:DQT:N:j:B:F:Vh";
 
 int config_option_letters_test()
 {
@@ -80,6 +80,7 @@ static picoquic_quic_config_t param1 = {
     /* Client only */
     NULL, /* char const* ticket_file_name; */
     NULL, /* char const* token_file_name; */
+    0, /* int bdp_option; */ 
     NULL, /* char const* sni; */
     NULL, /* char const* alpn; */
     NULL, /* char const* out_dir; */
@@ -155,6 +156,7 @@ static picoquic_quic_config_t param2 = {
     /* Client only */
     "/data/tickets.bin", /* char const* ticket_file_name; */
     "/data/tokens.bin", /* char const* token_file_name; */
+    1, /* int bdp_option; */
     "test.example.com", /* char const* sni; */
     "test", /* char const* alpn; */
     "/data/w_out", /* char const* out_dir; */

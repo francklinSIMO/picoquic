@@ -508,7 +508,8 @@ typedef uint64_t picoquic_tp_enum;
 #define picoquic_tp_enable_time_stamp 0x7158  /* x&1 */
 #define picoquic_tp_grease_quic_bit 0x2ab2 
 #define picoquic_tp_enable_multipath 0xbaba 
-#define picoquic_tp_enable_simple_multipath 0xbab5 
+#define picoquic_tp_enable_simple_multipath 0xbab5
+#define picoquic_tp_enable_bdp 0x40 
 
 /* Callback for converting binary log to quic log at the end of a connection. 
  * This is kept private for now; and will only be set through the "set quic log"
@@ -557,6 +558,7 @@ typedef struct st_picoquic_quic_t {
     uint32_t max_number_connections;
     uint64_t stateless_reset_next_time; /* Next time Stateless Reset or VN packet can be sent */
     uint64_t stateless_reset_min_interval; /* Enforced interval between two stateless reset packets */
+    uint32_t default_bdp_option;
     /* Flags */
     unsigned int check_token : 1;
     unsigned int force_check_token : 1;

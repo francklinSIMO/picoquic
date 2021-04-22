@@ -87,6 +87,7 @@ static option_table_line_t option_table[] = {
     "send a large client hello in order to test post quantum readiness" },
     { picoquic_option_Ticket_File_Name, 'T', "ticket_file", 1, "file", "File storing the session tickets" },
     { picoquic_option_Token_File_Name, 'N', "token_file", 1, "file", "File storing the new tokens" },
+    { picoquic_option_BDP, 'j', "bdp", 1, "number", "BDP options: disable_extension(0), optimize_current_cnx(1), receive_bdp_frames(2), both(3). Default=0" },
     { picoquic_option_Socket_buffer_size, 'B', "so_buf_size", 1, "number", "Set buffer size with SO_SNDBUF SO_RCVBUF" },
     { picoquic_option_Performance_Log, 'F', "log_file_name", 1, "file", "Append performance reports to performance log" },
     { picoquic_option_Preemptive_Repeat, 'V', "preemptive_repeat", 0, "", "enable preemptive repeat" },
@@ -460,6 +461,17 @@ static int config_set_option(option_table_line_t* option_desc, option_param_t* p
     case picoquic_option_Token_File_Name:
         ret = config_set_string_param(&config->token_file_name, params, nb_params, 0);
         break;
+    case picoquic_option_BDP: {
+        int v = config_atoi(params, nb_params, 0, &ret);
+        if (ret != 0 || v < 0 || v > 3) {
+            fprintf(stderr, "Invalid bdp option: %s\n", config_optval_param_string(opval_buffer, 256, params, nb_params, 0));
+            ret = (ret == 0) ? -1 : ret;
+        }
+        else {
+            config->bdp_option = v;
+        }
+        break;
+    }
     case picoquic_option_Socket_buffer_size:
         config->socket_buffer_size = config_atoi(params, nb_params, 0, &ret);
         if (config->socket_buffer_size < 0 ) {
@@ -755,6 +767,8 @@ picoquic_quic_t* picoquic_create_and_configure(picoquic_quic_config_t* config,
                 fprintf(stderr, "No token file present. Will create one as <%s>.\n", config->token_file_name);
             }
         }
+
+        picoquic_set_default_bdp_option(quic, config->bdp_option);
 
         if (config->force_zero_share) {
             quic->client_zero_share = 1;

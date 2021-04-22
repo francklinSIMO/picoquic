@@ -505,6 +505,11 @@ static int transport_param_compare(picoquic_tp_t* param, picoquic_tp_t* ref) {
             param->do_grease_quic_bit, ref->do_grease_quic_bit);
         ret = -1;
     }
+     else if (param->enable_bdp != ref->enable_bdp) {
+        DBG_PRINTF("enable_bdp: got %d, expected %d\n",
+            param->enable_bdp, ref->enable_bdp);
+        ret = -1;
+    }    
 
     return ret;
 }

@@ -1,6 +1,3 @@
-#include "picoquic_internal.h"
-#include "picoquic_internal.h"
-
 /*
 * Author: Christian Huitema
 * Copyright (c) 2017, Private Octopus, Inc.
@@ -555,6 +552,13 @@ uint64_t picoquic_get_crypto_epoch_length(picoquic_cnx_t* cnx)
     return cnx->crypto_epoch_length_max;
 }
 
+void picoquic_set_default_bdp_option(picoquic_quic_t* quic, int bdp_option)
+{
+    quic->default_bdp_option = bdp_option;
+    if (quic->default_tp != NULL) {
+        quic->default_tp->enable_bdp = bdp_option;
+    }
+}
 
 uint8_t picoquic_get_local_cid_length(picoquic_quic_t* quic)
 {
@@ -971,6 +975,7 @@ void picoquic_init_transport_parameters(picoquic_tp_t* tp, int client_mode)
     tp->enable_loss_bit = 2;
     tp->min_ack_delay = PICOQUIC_ACK_DELAY_MIN;
     tp->enable_time_stamp = 0;
+    tp->enable_bdp = 0;
 }
 
 
@@ -2660,6 +2665,7 @@ picoquic_cnx_t* picoquic_create_cnx(picoquic_quic_t* quic,
             cnx->local_parameters.enable_loss_bit = quic->default_lossbit_policy;
             cnx->local_parameters.enable_multipath = quic->default_multipath_option & 1;
             cnx->local_parameters.enable_simple_multipath = (quic->default_multipath_option >> 1) & 1;
+            cnx->local_parameters.enable_bdp = client_mode ? quic->default_bdp_option : 0;
         } else {
             memcpy(&cnx->local_parameters, quic->default_tp, sizeof(picoquic_tp_t));
             /* If the default parameters include preferred address, document it */

@@ -65,6 +65,7 @@ typedef enum {
     picoquic_option_LARGE_CLIENT_HELLO,
     picoquic_option_Ticket_File_Name,
     picoquic_option_Token_File_Name,
+    picoquic_option_BDP_File_Name,
     picoquic_option_BDP,
     picoquic_option_Socket_buffer_size,
     picoquic_option_Performance_Log,
@@ -109,6 +110,7 @@ typedef struct st_picoquic_quic_config_t {
     /* Client only */
     char const* ticket_file_name; /* TODO: allocate key */
     char const* token_file_name; /* TODO: allocate key */
+    char const* bdp_file_name; /* TODO: allocate key */
     int bdp_option;
     char const* sni;
     char const* alpn;

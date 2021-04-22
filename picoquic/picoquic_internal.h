@@ -475,6 +475,54 @@ int picoquic_load_tokens(picoquic_stored_token_t** pp_first_token,
 void picoquic_free_tokens(picoquic_stored_token_t** pp_first_token);
 
 /*
+ * BDP parameters, as defined by the 0RTT-BDP draft.
+ */
+typedef struct st_picoquic_bdp_t {
+    uint64_t lifetime;
+    uint64_t recon_bytes_in_flight;
+    uint64_t recon_min_rtt;
+
+} picoquic_bdp_t;
+
+#define picoquic_bdp_lifetime 0 
+#define picoquic_bdp_recon_bytes_in_flight 1 
+#define picoquic_bdp_recon_min_rtt 2
+
+#define PICOQUIC_NB_BDP 3
+
+typedef struct st_picoquic_stored_bdp_t {
+    uint64_t bdp[PICOQUIC_NB_BDP];
+    const uint8_t * ip_addr;
+    uint64_t time_valid_until;
+    uint8_t ip_addr_length;
+} picoquic_stored_bdp_t;
+
+int picoquic_store_bdp(picohash_table* table_bdp_by_net,
+    uint64_t current_time,
+    uint8_t const* ip_addr, uint8_t ip_addr_length,
+    const picoquic_bdp_t * bdp);
+int picoquic_get_bdp(picohash_table* table_bdp_by_net,
+    uint64_t current_time,
+    uint8_t const* ip_addr, uint8_t ip_addr_length,
+    picoquic_bdp_t * bdp);
+
+int picoquic_save_bdps(picohash_table* table_bdp_by_net,
+    uint64_t current_time, const char * bdp_file_name);
+int picoquic_load_bdps(picohash_table* table_bdp_by_net,
+    uint64_t current_time, const char * bdp_file_name);
+void picoquic_free_bdps(picohash_table* table_bdp_net);
+
+/*
+* Structure used in the hash table of bdps
+*/
+typedef struct st_picoquic_net_bdp_key_t {
+    uint8_t * ip_addr;
+    uint8_t ip_addr_length; 
+    picoquic_stored_bdp_t* stored_bdp;
+} picoquic_net_bdp_key_t;
+
+
+/*
  * Transport parameters, as defined by the QUIC transport specification.
  * The initial code defined the type as an enum, but the binary representation
  * of the enum type is not strictly defined in C. Values like "0xff02de1"
@@ -592,6 +640,7 @@ typedef struct st_picoquic_quic_t {
     picohash_table* table_cnx_by_net;
     picohash_table* table_cnx_by_icid;
     picohash_table* table_cnx_by_secret;
+    picohash_table* table_bdp_by_net;   
 
     picoquic_packet_t * p_first_packet;
     int nb_packets_in_pool;

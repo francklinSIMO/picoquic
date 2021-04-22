@@ -96,6 +96,7 @@ extern "C" {
 #define PICOQUIC_ERROR_SOCKET_ERROR (PICOQUIC_ERROR_CLASS + 54)
 #define PICOQUIC_ERROR_VERSION_NEGOTIATION (PICOQUIC_ERROR_CLASS + 55)
 #define PICOQUIC_ERROR_PACKET_TOO_LONG (PICOQUIC_ERROR_CLASS + 56)
+#define PICOQUIC_ERROR_INVALID_BDP (PICOQUIC_ERROR_CLASS + 57)
 
 /*
  * Protocol errors defined in the QUIC spec
@@ -559,6 +560,8 @@ int picoquic_save_retry_tokens(picoquic_quic_t* quic, char const* token_store_fi
 
 /* Manage bdp samples */
 void picoquic_set_default_bdp_option(picoquic_quic_t* quic, int enable_bdp);
+int picoquic_load_bdp_samples(picoquic_quic_t* quic, char const* bdp_store_filename);
+int picoquic_save_bdp_samples(picoquic_quic_t* quic, char const* bdp_store_filename);
 
 /* Set default connection ID length for the context.
  * All valid values are supported on the client.

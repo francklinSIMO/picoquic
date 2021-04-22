@@ -667,6 +667,13 @@ namespace UnitTest1
 
             Assert::AreEqual(ret, 0);
         }
+ 
+        TEST_METHOD(bdp_store)
+        {
+            int ret = bdp_store_test();
+
+            Assert::AreEqual(ret, 0);
+        }
 
         TEST_METHOD(test_session_resume)
         {

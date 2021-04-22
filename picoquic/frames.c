@@ -4099,6 +4099,118 @@ uint8_t* picoquic_format_path_status_frame(picoquic_cnx_t* cnx, uint8_t* bytes, 
 
     return bytes;
 }
+
+
+/* BDP frames as defined in https://tools.ietf.org/html/draft-kuhn-quic-0rtt-bdp-08
+*/
+
+const uint8_t* picoquic_skip_bdp_frame(const uint8_t* bytes, const uint8_t* bytes_max)
+{
+    /* This code assumes that the frame type is already skipped */
+    if ((bytes = picoquic_frames_varint_skip(bytes, bytes_max)) != NULL && 
+        (bytes = picoquic_frames_varint_skip(bytes, bytes_max)) != NULL) {
+        bytes = picoquic_frames_varint_skip(bytes, bytes_max);
+    }
+    return bytes;
+}
+
+
+const uint8_t* picoquic_parse_bdp_frame(picoquic_cnx_t * cnx, const uint8_t* bytes, const uint8_t* bytes_max,
+    picoquic_bdp_t * bdp)
+{
+    if ((bytes = picoquic_frames_varint_decode(bytes, bytes_max, &bdp->lifetime)) != NULL &&
+        (bytes = picoquic_frames_varint_decode(bytes, bytes_max, &bdp->recon_bytes_in_flight)) != NULL) {
+        bytes = picoquic_frames_varint_decode(bytes, bytes_max, &bdp->recon_min_rtt);
+    }
+    return bytes;
+}
+
+const uint8_t* picoquic_decode_bdp_frame(picoquic_cnx_t* cnx, const uint8_t* bytes, const uint8_t* bytes_max,
+    uint64_t current_time, struct sockaddr* addr_from, picoquic_path_t* path_x)
+{
+    picoquic_bdp_t * bdp = (picoquic_bdp_t*)malloc(sizeof(picoquic_bdp_t)); 
+    uint8_t * ip_addr;
+    uint8_t ip_addr_length;
+
+    /* This code assumes that the frame type is already skipped */
+    if ((bytes = picoquic_parse_bdp_frame(cnx, bytes, bytes_max, bdp))  != NULL) {
+        /* Store received bdp */
+        if(cnx->client_mode) {
+           picoquic_get_ip_addr(addr_from, &ip_addr, &ip_addr_length);
+           (void)picoquic_store_bdp(cnx->quic->table_bdp_by_net, current_time, ip_addr, ip_addr_length, bdp);
+        }
+        else {
+            path_x->smoothed_rtt = bdp->recon_min_rtt;
+            path_x->rtt_min = bdp->recon_min_rtt;
+            path_x->rtt_variant = 0;
+            path_x->retransmit_timer = path_x->smoothed_rtt + 4 * path_x->rtt_variant + 
+            cnx->remote_parameters.max_ack_delay;
+            if(path_x->cwin < bdp->recon_bytes_in_flight) {
+               path_x->cwin = bdp->recon_bytes_in_flight;
+            }
+        }
+        path_x->bdp = bdp;
+    }
+    else {
+        picoquic_connection_error(cnx, PICOQUIC_TRANSPORT_FRAME_FORMAT_ERROR,
+            picoquic_frame_type_bdp);
+    }
+    return bytes;
+}
+
+
+int picoquic_compare_bdp(picoquic_bdp_t* new, picoquic_bdp_t* old) 
+{
+    int ret = -1;
+    if (new != NULL && old != NULL) { 
+        if(new->lifetime == old->lifetime && new->recon_bytes_in_flight == old->recon_bytes_in_flight && new->recon_min_rtt == old->recon_min_rtt) {
+           ret = 0;
+        }
+    }
+    
+    return ret;
+}
+
+uint8_t* picoquic_format_bdp_frame(picoquic_cnx_t* cnx, uint8_t* bytes, uint8_t* bytes_max, picoquic_path_t* path_x, int* more_data, int * is_pure_ack)
+{
+    uint8_t* bytes0 = bytes;
+    uint64_t current_time = picoquic_get_quic_time(cnx->quic);
+    uint8_t * ip_addr;
+    uint8_t ip_addr_length;
+    picoquic_bdp_t * bdp = (picoquic_bdp_t *)malloc(sizeof(picoquic_bdp_t));
+
+    int ret = 0;
+    /* Server sends bdp reflecting current path caracteristics */
+    if (!cnx->client_mode) {
+        /* There is no explicit TTL for bdps. We assume they are OK for 24 hours */
+        bdp->lifetime = (uint64_t)(24 * 3600) * ((uint64_t)1000000); 
+        bdp->recon_bytes_in_flight = path_x->bytes_in_transit;
+        bdp->recon_min_rtt = path_x->rtt_min;
+    }
+    else {
+        /* Client sends bdp back to server */
+        picoquic_get_ip_addr((struct sockaddr *)&path_x->peer_addr, &ip_addr, &ip_addr_length);
+        ret = picoquic_get_bdp(cnx->quic->table_bdp_by_net, current_time, ip_addr, ip_addr_length, bdp);
+    }
+   
+    if (ret == 0 && bdp != NULL && picoquic_compare_bdp(bdp, path_x->bdp) != 0) {
+        if ((bytes = picoquic_frames_varint_encode(bytes, bytes_max, picoquic_frame_type_bdp)) == NULL || 
+            (bytes = picoquic_frames_varint_encode(bytes, bytes_max, bdp->lifetime)) == NULL || 
+            (bytes = picoquic_frames_varint_encode(bytes, bytes_max, bdp->recon_bytes_in_flight)) == NULL || 
+            (bytes = picoquic_frames_varint_encode(bytes, bytes_max, bdp->recon_min_rtt)) == NULL) {
+            *more_data = 1;
+            bytes = bytes0;
+        }
+        else {
+            *is_pure_ack = 0;
+            path_x->bdp = bdp;
+        }
+
+    }
+    return bytes;
+}
+
+
 /*
  * Decoding of the received frames.
  *
@@ -4308,6 +4420,30 @@ int picoquic_decode_frames(picoquic_cnx_t* cnx, picoquic_path_t * path_x, const 
                         break;
                     case picoquic_frame_type_path_status:
                         bytes = picoquic_decode_path_status_frame(bytes, bytes_max, cnx);
+                        ack_needed = 1;
+                        break;
+                    case picoquic_frame_type_bdp:
+                        if (cnx->client_mode && epoch != picoquic_epoch_1rtt) {
+                            DBG_PRINTF("BDP frame (0x%x) is expected in 1-RTT packet", first_byte);
+                            picoquic_connection_error(cnx, PICOQUIC_TRANSPORT_PROTOCOL_VIOLATION, first_byte);
+                            bytes = NULL;
+                            break;
+                        }
+                        if (!cnx->client_mode && epoch != picoquic_epoch_0rtt) {
+                            DBG_PRINTF("BDP frame (0x%x) is expected in 0-RTT packet", first_byte);
+                            picoquic_connection_error(cnx, PICOQUIC_TRANSPORT_PROTOCOL_VIOLATION, first_byte);
+                            bytes = NULL;
+                            break;
+                        }
+                        if (cnx->client_mode && (cnx->local_parameters.enable_bdp == 0 || 
+                            cnx->local_parameters.enable_bdp == 1)) {
+                            DBG_PRINTF("BDP frame (0x%x) not expected", first_byte);
+                            picoquic_connection_error(cnx, PICOQUIC_TRANSPORT_PROTOCOL_VIOLATION, 0);
+                            bytes = NULL;
+                            break;
+                        }
+                        
+                        bytes = picoquic_decode_bdp_frame(cnx, bytes, bytes_max, current_time, addr_from, path_x);
                         ack_needed = 1;
                         break;
                     default:
@@ -4599,6 +4735,10 @@ int picoquic_skip_frame(const uint8_t* bytes, size_t bytes_maxsize, size_t* cons
                     break;
                 case picoquic_frame_type_path_status:
                     bytes = picoquic_skip_path_status_frame(bytes, bytes_max);
+                    *pure_ack = 0;
+                    break;
+                case picoquic_frame_type_bdp:
+                    bytes = picoquic_skip_bdp_frame(bytes, bytes_max);
                     *pure_ack = 0;
                     break;
                 default:

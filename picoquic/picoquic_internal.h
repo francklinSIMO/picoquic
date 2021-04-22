@@ -142,7 +142,8 @@ typedef enum {
     picoquic_frame_type_ack_mp = 0xbaba0,
     picoquic_frame_type_ack_mp_ecn = 0xbaba1,
     picoquic_frame_type_qoe = 0xbaba2,
-    picoquic_frame_type_path_status = 0xbaba3
+    picoquic_frame_type_path_status = 0xbaba3,
+    picoquic_frame_type_bdp = 0x40
 } picoquic_frame_type_enum_t;
 
 /* PMTU discovery requirement status */
@@ -1013,6 +1014,8 @@ typedef struct st_picoquic_path_t {
     uint64_t last_time_acked_data_frame_sent;
     void* congestion_alg_state;
 
+    picoquic_bdp_t * bdp; /* The last bdp sample sent */
+
     /*
     * Pacing uses a set of per path variables:
     * - pacing_rate: bytes per second.
@@ -1650,6 +1653,7 @@ const uint8_t* picoquic_parse_ack_frequency_frame(const uint8_t* bytes, const ui
 uint8_t* picoquic_format_ack_frequency_frame(picoquic_cnx_t* cnx, uint8_t* bytes, uint8_t* bytes_max, int* more_data);
 uint8_t* picoquic_format_time_stamp_frame(picoquic_cnx_t* cnx, uint8_t* bytes, uint8_t* bytes_max, int* more_data, uint64_t current_time);
 size_t picoquic_encode_time_stamp_length(picoquic_cnx_t* cnx, uint64_t current_time);
+uint8_t* picoquic_format_bdp_frame(picoquic_cnx_t* cnx, uint8_t* bytes, uint8_t* bytes_max, picoquic_path_t* path_x, int* more_data, int * is_pure_ack);
 
 int picoquic_decode_frames(picoquic_cnx_t* cnx, picoquic_path_t * path_x, const uint8_t* bytes, size_t bytes_max,
     picoquic_stream_data_node_t* received_data,

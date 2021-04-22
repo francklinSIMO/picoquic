@@ -253,6 +253,7 @@ typedef struct st_picoquic_tp_t {
     int do_grease_quic_bit;
     int enable_multipath;
     int enable_simple_multipath;
+    int enable_bdp;
 } picoquic_tp_t;
 
 /*
@@ -555,6 +556,9 @@ int picoquic_is_local_cid(picoquic_quic_t* quic, picoquic_connection_id_t* cid);
 int picoquic_load_retry_tokens(picoquic_quic_t* quic, char const* token_store_filename);
 int picoquic_save_session_tickets(picoquic_quic_t* quic, char const* ticket_store_filename);
 int picoquic_save_retry_tokens(picoquic_quic_t* quic, char const* token_store_filename);
+
+/* Manage bdp samples */
+void picoquic_set_default_bdp_option(picoquic_quic_t* quic, int enable_bdp);
 
 /* Set default connection ID length for the context.
  * All valid values are supported on the client.

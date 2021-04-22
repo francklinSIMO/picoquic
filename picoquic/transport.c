@@ -409,6 +409,10 @@ int picoquic_prepare_transport_extensions(picoquic_cnx_t* cnx, int extension_mod
             (uint64_t)cnx->local_parameters.enable_simple_multipath);
     }
 
+    if (cnx->client_mode && cnx->local_parameters.enable_bdp > 0 && bytes != NULL) {
+        bytes = picoquic_transport_param_type_varint_encode(bytes, bytes_max, picoquic_tp_enable_bdp,
+            (uint64_t)cnx->local_parameters.enable_bdp);
+    }
 
     if (bytes == NULL) {
         *consumed = 0;
@@ -447,6 +451,7 @@ void picoquic_clear_transport_extensions(picoquic_cnx_t* cnx)
     cnx->remote_parameters.enable_time_stamp = 0;
     cnx->remote_parameters.min_ack_delay = 0;
     cnx->remote_parameters.do_grease_quic_bit = 0;
+    cnx->remote_parameters.enable_bdp = 0;
 }
 
 int picoquic_receive_transport_extensions(picoquic_cnx_t* cnx, int extension_mode,
@@ -718,6 +723,19 @@ int picoquic_receive_transport_extensions(picoquic_cnx_t* cnx, int extension_mod
                         }
                         else {
                             cnx->remote_parameters.enable_simple_multipath = (int)enable_simple_multipath;
+                        }
+                    }
+                    break;
+                }
+                case picoquic_tp_enable_bdp: {
+                    uint64_t enable_bdp =
+                        picoquic_transport_param_varint_decode(cnx, bytes + byte_index, extension_length, &ret);
+                    if (ret == 0) {
+                        if (enable_bdp < 1 || enable_bdp > 3) {
+                            ret = picoquic_connection_error(cnx, PICOQUIC_TRANSPORT_PARAMETER_ERROR, 0);
+                        }
+                        else {
+                            cnx->remote_parameters.enable_bdp = (int)enable_bdp;
                         }
                     }
                     break;

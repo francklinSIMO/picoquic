@@ -132,6 +132,7 @@ static const picoquic_test_def_t test_table[] = {
     { "socket_ecn", socket_ecn_test },
     { "ticket_store", ticket_store_test },
     { "token_store", token_store_test },
+    { "bdp_store", bdp_store_test },
     { "token_reuse_api", token_reuse_api_test },
     { "session_resume", session_resume_test },
     { "zero_rtt", zero_rtt_test },

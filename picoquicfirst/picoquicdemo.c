@@ -60,6 +60,7 @@ static const int default_server_port = 4443;
 static const char* default_server_name = "::";
 static const char* ticket_store_filename = "demo_ticket_store.bin";
 static const char* token_store_filename = "demo_token_store.bin";
+static const char* bdp_store_filename = "demo_bdp_store.bin";
 
 
 #include "picoquic.h"
@@ -171,6 +172,9 @@ int quic_server(const char* server_name, picoquic_quic_config_t * config,
         }
         if (ret == 0 && config->token_file_name == NULL) {
             ret = picoquic_config_set_option(config, picoquic_option_Token_File_Name, token_store_filename);
+        }
+        if (ret == 0 && config->bdp_file_name == NULL) {
+            ret = picoquic_config_set_option(config, picoquic_option_BDP_File_Name, bdp_store_filename);
         }
         if (ret == 0) {
             qserver = picoquic_create_and_configure(config, picoquic_demo_server_callback, &picoquic_file_param, current_time, NULL);
@@ -526,6 +530,9 @@ int quic_client(const char* ip_address_text, int server_port,
         if (ret == 0 && config->token_file_name == NULL) {
             ret = picoquic_config_set_option(config, picoquic_option_Token_File_Name, token_store_filename);
         }
+        if (ret == 0 && config->bdp_file_name == NULL) {
+            ret = picoquic_config_set_option(config, picoquic_option_BDP_File_Name, bdp_store_filename);
+        }
         if (ret == 0) {
             qclient = picoquic_create_and_configure(config, NULL, NULL, current_time, NULL);
             if (qclient == NULL) {
@@ -812,6 +819,10 @@ int quic_client(const char* ip_address_text, int server_port,
 
         if (picoquic_save_retry_tokens(qclient, config->token_file_name) != 0) {
             fprintf(stderr, "Could not save tokens to <%s>.\n", config->token_file_name);
+        }
+
+        if (picoquic_save_bdp_samples(qclient, config->bdp_file_name) != 0) {
+            fprintf(stderr, "Could not save bdps to <%s>.\n", config->bdp_file_name);
         }
 
         picoquic_free(qclient);

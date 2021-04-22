@@ -240,6 +240,29 @@ static int picoquic_net_secret_compare(const void* key1, const void* key2)
     return ret;
 }
 
+/* Hash and compare for BDP hash table */
+static uint64_t picoquic_net_bdp_hash(const void* key)
+{
+    const picoquic_net_bdp_key_t* net_bdp = (const picoquic_net_bdp_key_t*)key;
+
+    return picohash_bytes(net_bdp->ip_addr, net_bdp->ip_addr_length);
+
+}
+
+static int picoquic_net_bdp_compare(const void* key1, const void* key2)
+{
+    const picoquic_net_bdp_key_t* net_bdp1 = (const picoquic_net_bdp_key_t*)key1;
+    const picoquic_net_bdp_key_t* net_bdp2 = (const picoquic_net_bdp_key_t*)key2;
+
+    int ret = -1;
+
+    if (net_bdp1->ip_addr_length == net_bdp2->ip_addr_length && memcmp(net_bdp1->ip_addr, net_bdp2->ip_addr, net_bdp1->ip_addr_length) == 0) {
+        ret = 0;
+    }
+
+    return ret;
+}
+
 picoquic_packet_context_enum picoquic_context_from_epoch(int epoch)
 {
     static picoquic_packet_context_enum const pc[4] = {
@@ -426,12 +449,15 @@ picoquic_quic_t* picoquic_create(uint32_t max_nb_connections,
 
             quic->table_cnx_by_secret = picohash_create((size_t)max_nb_connections * 4,
                 picoquic_net_secret_hash, picoquic_net_secret_compare);
+ 
+            quic->table_bdp_by_net = picohash_create((size_t)max_nb_connections * 4,
+                picoquic_net_bdp_hash, picoquic_net_bdp_compare);
 
             picosplay_init_tree(&quic->token_reuse_tree, picoquic_registered_token_compare,
                 picoquic_registered_token_create, picoquic_registered_token_delete, picoquic_registered_token_value);
 
             if (quic->table_cnx_by_id == NULL || quic->table_cnx_by_net == NULL ||
-                quic->table_cnx_by_icid == NULL || quic->table_cnx_by_secret == NULL) {
+                quic->table_cnx_by_icid == NULL || quic->table_cnx_by_secret == NULL || quic->table_bdp_by_net == NULL) {
                 ret = -1;
                 DBG_PRINTF("%s", "Cannot initialize hash tables\n");
             }
@@ -618,6 +644,9 @@ void picoquic_free(picoquic_quic_t* quic)
 
         /* Deelete the reused tokens tree */
         picosplay_empty_tree(&quic->token_reuse_tree);
+ 
+        /* Delete the stored bdps */
+        picoquic_free_bdps(quic->table_bdp_by_net);
 
         /* delete packets in pool */
         while (quic->p_first_packet != NULL) {
@@ -659,6 +688,7 @@ void picoquic_free(picoquic_quic_t* quic)
         if (quic->table_cnx_by_secret != NULL) {
             picohash_delete(quic->table_cnx_by_secret, 1);
         }
+        
 #if 0
         if (quic->verify_certificate_ctx != NULL &&
             quic->free_verify_certificate_callback_fn != NULL) {

@@ -91,6 +91,7 @@ int socket_test();
 int test_stateless_blowback();
 int ticket_store_test();
 int token_store_test();
+int bdp_store_test();
 int session_resume_test();
 int zero_rtt_test();
 int zero_rtt_loss_test();

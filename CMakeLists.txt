@@ -82,6 +82,7 @@ set(PICOQUIC_LIBRARY_FILES
     picoquic/spinbit.c
     picoquic/ticket_store.c
     picoquic/token_store.c
+    picoquic/bdp_store.c
     picoquic/tls_api.c
     picoquic/transport.c
     picoquic/unified_log.c
@@ -135,6 +136,7 @@ set(PICOQUIC_TEST_LIBRARY_FILES
     picoquictest/stream0_frame_test.c
     picoquictest/stresstest.c
     picoquictest/ticket_store_test.c
+    picoquictest/bdp_store_test.c
     picoquictest/tls_api_test.c
     picoquictest/transport_param_test.c
     picoquictest/util_test.c
